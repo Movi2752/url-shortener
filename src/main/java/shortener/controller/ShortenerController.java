@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import java.net.URI;
+import shortener.dto.LinkStatsResponse;
 
 @RestController
 @RequiredArgsConstructor
@@ -38,5 +39,17 @@ public class ShortenerController {
         HttpHeaders headers = new HttpHeaders();
         headers.setLocation(URI.create(link.getOriginalUrl()));
         return new ResponseEntity<>(headers, HttpStatus.FOUND);
+    }
+
+    @GetMapping("/stats/{code}")
+    public ResponseEntity<LinkStatsResponse> stats(@PathVariable String code) {
+        Link link = shortenerService.getByCode(code);
+        LinkStatsResponse response = new LinkStatsResponse(
+                link.getCode(),
+                link.getOriginalUrl(),
+                link.getClicks(),
+                link.getCreatedAt()
+        );
+        return ResponseEntity.ok(response);
     }
 }
