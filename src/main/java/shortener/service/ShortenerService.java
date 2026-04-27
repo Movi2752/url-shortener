@@ -57,4 +57,18 @@ public class ShortenerService {
         }
         return sb.toString();
     }
+
+    @Transactional
+    public Link resolveAndIncrementClicks(String code) {
+        Link link = linkRepository.findByCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Code not found: " + code));
+        link.setClicks(link.getClicks() + 1);
+        return link;
+    }
+
+    @Transactional(readOnly = true)
+    public Link getByCode(String code) {
+        return linkRepository.findByCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Code not found: " + code));
+    }
 }
