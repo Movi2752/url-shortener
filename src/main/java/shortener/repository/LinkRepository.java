@@ -10,4 +10,6 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
     Optional<Link> findByCode(String code);
 
     boolean existsByCode(String code);
+
+    void deleteByCode(String code);
 }

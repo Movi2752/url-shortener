@@ -71,4 +71,17 @@ public class ShortenerService {
         return linkRepository.findByCode(code)
                 .orElseThrow(() -> new IllegalArgumentException("Code not found: " + code));
     }
+
+    @Transactional
+    public void deleteByCode(String code) {
+        if (!linkRepository.existsByCode(code)) {
+            throw new IllegalArgumentException("Code not found: " + code);
+        }
+        linkRepository.deleteByCode(code);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<Link> listAll() {
+        return linkRepository.findAll();
+    }
 }

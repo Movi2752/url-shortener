@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>shortener</title>
+<link id="favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f5f2ec'/%3E%3Cpath d='M22 32 h20' stroke='%232335cc' stroke-width='6' stroke-linecap='round'/%3E%3Ccircle cx='22' cy='32' r='8' fill='none' stroke='%2318171a' stroke-width='4'/%3E%3Ccircle cx='42' cy='32' r='8' fill='none' stroke='%2318171a' stroke-width='4'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f5f2ec;
+    --panel: #ffffff;
+    --ink: #18171a;
+    --muted: #6c6a72;
+    --rule: #18171a14;
+    --rule2: #18171a30;
+    --field: #faf7f1;
+    --accent: #2335cc;
+    --accent-ink: #ffffff;
+    --ok: #0d6b3a;
+    --err: #a4220f;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --sans: "Inter", system-ui, sans-serif;
+  }
+  [data-theme="console"] {
+    --bg: #0d0e10; --panel: #15171b; --ink: #e8e6df; --muted: #8a8d94;
+    --rule: #e8e6df1c; --rule2: #e8e6df3a; --field: #0a0b0d;
+    --accent: #c8ff3a; --accent-ink: #0d0e10; --ok: #7ce0a3; --err: #ff7a66;
+  }
+  [data-theme="blueprint"] {
+    --bg: #0e1d3a; --panel: #13264a; --ink: #eaf1ff; --muted: #94a8cd;
+    --rule: #eaf1ff20; --rule2: #eaf1ff40; --field: #0a1730;
+    --accent: #ffd84a; --accent-ink: #0e1d3a; --ok: #9be9b1; --err: #ff9b88;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    transition: background 240ms, color 240ms;
+  }
+  .mono { font-family: var(--mono); letter-spacing: -0.01em; }
+  .muted { color: var(--muted); }
+
+  .wrap { max-width: 880px; margin: 0 auto; padding: 28px 20px 40px; }
+
+  /* Header */
+  .head { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 26px; font-weight: 700; letter-spacing: -0.03em; }
+  .brand-mark {
+    width: 32px; height: 32px;
+    border: 1.5px solid var(--ink);
+    border-radius: 8px;
+    background: var(--panel);
+    display: grid; place-items: center;
+    position: relative;
+    box-shadow: 2px 2px 0 var(--ink);
+    flex-shrink: 0;
+  }
+  .brand-mark svg { width: 18px; height: 18px; }
+  .brand-mark .ring1, .brand-mark .ring2 { fill: none; stroke: var(--ink); stroke-width: 2.4; }
+  .brand-mark .bar { stroke: var(--accent); stroke-width: 2.6; stroke-linecap: round; }
+  .brand b { color: var(--accent); }
+  .head .grow { flex: 1; }
+  .head .meta { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok) 22%, transparent); }
+  .dot.bad { background: var(--err); box-shadow: 0 0 0 3px color-mix(in oklab, var(--err) 22%, transparent); }
+
+  .themes { display: flex; gap: 4px; border: 1px solid var(--rule); border-radius: 4px; padding: 2px; }
+  .themes button {
+    background: none; border: 0; padding: 4px 9px;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    cursor: pointer; border-radius: 3px;
+  }
+  .themes button.on { background: var(--ink); color: var(--bg); }
+
+  /* Card */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .card-head {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+    background: linear-gradient(180deg, var(--field), var(--panel));
+  }
+  .card-head h2 { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0; font-weight: 600; }
+  .card-head .endpoint { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .card-body { padding: 16px; }
+
+  /* Form */
+  .form { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; gap: 8px; }
+  .row > .field { flex: 1; min-width: 0; }
+  .field {
+    display: flex; align-items: center;
+    background: var(--field);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+  }
+  .field:focus-within { border-color: var(--ink); background: var(--panel); }
+  .field input {
+    flex: 1; min-width: 0;
+    background: none; border: 0; outline: 0;
+    padding: 12px 14px;
+    font-family: var(--mono); font-size: 14px; color: var(--ink);
+  }
+  .field input::placeholder { color: var(--muted); opacity: 0.55; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--accent); color: var(--accent-ink);
+    border: 0; padding: 12px 18px;
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; border-radius: 4px;
+    transition: transform 80ms, opacity 120ms;
+    min-height: 44px;
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn:active:not(:disabled) { transform: translateY(0); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.sec {
+    background: var(--panel); color: var(--ink); border: 1px solid var(--ink);
+  }
+  .btn.sec:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
+  .btn.tiny {
+    padding: 6px 10px; font-size: 10.5px; min-height: 32px;
+    background: var(--panel); color: var(--muted); border: 1px solid var(--rule);
+    text-transform: none; letter-spacing: 0;
+  }
+  .btn.tiny:hover { color: var(--ink); border-color: var(--ink); }
+  .btn.tiny.danger:hover { background: var(--err); color: #fff; border-color: var(--err); }
+
+  .alert {
+    padding: 10px 12px; border-radius: 4px; font-size: 13px;
+    border: 1px solid; display: flex; gap: 10px; align-items: center;
+  }
+  .alert.err { color: var(--err); border-color: color-mix(in oklab, var(--err) 35%, var(--rule)); background: color-mix(in oklab, var(--err) 8%, var(--panel)); }
+  .alert.ok { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 35%, var(--rule)); background: color-mix(in oklab, var(--ok) 8%, var(--panel)); }
+  .tag { font-family: var(--mono); font-size: 10.5px; padding: 2px 7px; border-radius: 2px; letter-spacing: 0.04em; }
+  .tag.err { background: var(--err); color: #fff; }
+  .tag.ok { background: var(--ok); color: #fff; }
+
+  .result {
+    border: 1px dashed var(--rule2);
+    background: var(--field);
+    padding: 14px;
+    border-radius: 4px;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .result a {
+    flex: 1; min-width: 0;
+    font-family: var(--mono); font-size: 16px;
+    background: var(--panel); border: 1px solid var(--ink); border-radius: 3px;
+    padding: 10px 12px; color: var(--ink); text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .result a:hover { background: var(--ink); color: var(--bg); }
+
+  /* List */
+  .list-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .search {
+    flex: 1; min-width: 0;
+    background: var(--field); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 8px 12px; font-family: var(--mono); font-size: 12px; color: var(--ink); outline: 0;
+  }
+  .search:focus { border-color: var(--ink); }
+  .count { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+
+  .list { margin-top: 10px; }
+  .item {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr) auto;
+    gap: 12px; align-items: center;
+    padding: 12px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .item:first-child { border-top: 0; }
+  .code-pill {
+    background: var(--ink); color: var(--bg);
+    padding: 4px 8px; border-radius: 3px;
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    cursor: pointer; user-select: all;
+    text-align: center;
+  }
+  .code-pill:hover { background: var(--accent); color: var(--accent-ink); }
+  .item-url { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .item-url a {
+    font-family: var(--mono); font-size: 13px; color: var(--ink);
+    text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .item-url a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+  .item-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+  .item-meta .clicks { color: var(--ink); font-weight: 500; }
+  .item-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+  .empty {
+    padding: 30px 16px; text-align: center;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+
+  .stats {
+    grid-column: 1 / -1;
+    margin-top: 6px;
+    background: var(--field);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    animation: pop 180ms ease-out;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .stat-box .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .stat-box .val { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-top: 2px; }
+  .stat-box .sub { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  /* Modal */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: color-mix(in oklab, var(--ink) 60%, transparent);
+    backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; z-index: 100;
+  }
+  .modal {
+    background: var(--panel); border: 1px solid var(--ink); border-radius: 6px;
+    padding: 20px; max-width: 380px; width: 100%;
+  }
+  .modal h3 { margin: 0 0 8px; font-size: 16px; }
+  .modal p { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+  .modal .row { justify-content: flex-end; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg);
+    padding: 10px 16px; border-radius: 4px;
+    font-family: var(--mono); font-size: 12px;
+    z-index: 200;
+    animation: toastIn 200ms ease-out;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+  .spinner {
+    width: 12px; height: 12px;
+    border: 1.5px solid currentColor; border-right-color: transparent;
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Mobile */
+  @media (max-width: 640px) {
+    .wrap { padding: 18px 14px 40px; }
+    .brand { font-size: 22px; }
+    .head { gap: 6px; }
+    .head .meta { margin-left: auto; }
+    .row { flex-direction: column; }
+    .row > .btn { width: 100%; }
+    .item {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .item-actions { justify-content: flex-start; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .result a { font-size: 14px; }
+    .field input { padding: 11px 12px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <line class="bar" x1="7" y1="12" x2="17" y2="12" />
+          <circle class="ring1" cx="7" cy="12" r="4" />
+          <circle class="ring2" cx="17" cy="12" r="4" />
+        </svg>
+      </span>
+      <span>shortener</span>
+    </div>
+    <span class="grow"></span>
+    <span class="meta" id="health"><span class="dot"></span><span id="health-txt">…</span></span>
+    <div class="themes" id="themes">
+      <button data-t="paper" class="on">paper</button>
+      <button data-t="console">console</button>
+      <button data-t="blueprint">blueprint</button>
+    </div>
+  </header>
+
+  <!-- Shorten -->
+  <section class="card">
+    <div class="card-head">
+      <h2>сократить</h2>
+      <span class="endpoint">POST /shorten</span>
+    </div>
+    <div class="card-body">
+      <form class="form" id="form">
+        <div class="row">
+          <div class="field">
+            <input id="url" type="text" placeholder="https://example.com/long/path?q=…" autocomplete="off" spellcheck="false" />
+          </div>
+          <button class="btn" id="submit" type="submit">сократить →</button>
+        </div>
+        <div id="form-msg"></div>
+        <div id="form-result"></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- List -->
+  <section class="card">
+    <div class="card-head">
+      <h2>ссылки</h2>
+      <span class="endpoint" id="list-endpoint">GET /links</span>
+      <span class="grow" style="flex:1"></span>
+      <span class="count" id="list-count">…</span>
+    </div>
+    <div class="card-body">
+      <div class="list-controls">
+        <input class="search" id="search" placeholder="фильтр по коду или url…" />
+        <button class="btn tiny" id="refresh-all">обновить</button>
+      </div>
+      <div class="list" id="list">
+        <div class="empty">загрузка…</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="modal-mount"></div>
+<div id="toast-mount"></div>
+
+<script>
+/* ============ State ============ */
+const THEME_KEY = "shortener.theme.v1";
+
+let links = [];
+let query = "";
+let expanded = null; // code being statted
+let stats = {};      // code -> stats
+
+/* ============ Theme ============ */
+const FAVICONS = {
+  paper:     { bg: "f5f2ec", ring: "18171a", bar: "2335cc" },
+  console:   { bg: "0d0e10", ring: "e8e6df", bar: "c8ff3a" },
+  blueprint: { bg: "0e1d3a", ring: "eaf1ff", bar: "ffd84a" },
+};
+function setFavicon(theme, status) {
+  const c = FAVICONS[theme] || FAVICONS.paper;
+  // status: 'ok' (зелёный), 'bad' (красный), undefined (серый/проверка)
+  const dotFill = status === "ok" ? "22c55e" : status === "bad" ? "ef4444" : "9ca3af";
+  const dotStroke = c.bg;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23${c.bg}'/><path d='M22 32 h20' stroke='%23${c.bar}' stroke-width='6' stroke-linecap='round'/><circle cx='22' cy='32' r='10' fill='none' stroke='%23${c.ring}' stroke-width='4'/><circle cx='42' cy='32' r='10' fill='none' stroke='%23${c.ring}' stroke-width='4'/><circle cx='50' cy='14' r='9' fill='%23${dotFill}' stroke='%23${dotStroke}' stroke-width='3'/></svg>`.replace(/"/g, "'");
+  document.getElementById("favicon").href = "data:image/svg+xml;utf8," + svg;
+}
+let __faviconStatus;
+function setFaviconStatus(status) {
+  __faviconStatus = status;
+  setFavicon(document.documentElement.dataset.theme || "paper", status);
+}
+
+const savedTheme = localStorage.getItem(THEME_KEY) || "paper";
+document.documentElement.dataset.theme = savedTheme;
+setFavicon(savedTheme, __faviconStatus);
+document.querySelectorAll("#themes button").forEach(b => {
+  b.classList.toggle("on", b.dataset.t === savedTheme);
+  b.onclick = () => {
+    document.documentElement.dataset.theme = b.dataset.t;
+    localStorage.setItem(THEME_KEY, b.dataset.t);
+    setFavicon(b.dataset.t, __faviconStatus);
+    document.querySelectorAll("#themes button").forEach(x => x.classList.toggle("on", x === b));
+  };
+});
+
+/* ============ API (relative paths — same origin) ============ */
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  if (!res.ok) {
+    const msg = (data && (data.message || data.error)) || `HTTP ${res.status}`;
+    throw { status: res.status, message: msg };
+  }
+  return data;
+}
+
+/* ============ Health ============ */
+async function checkHealth() {
+  const dot = document.querySelector("#health .dot");
+  const txt = document.getElementById("health-txt");
+  dot.className = "dot";
+  txt.textContent = "проверка…";
+  setFaviconStatus(undefined);
+  try {
+    const r = await api("/health");
+    dot.classList.add("ok");
+    txt.textContent = `${r.status || "UP"}`;
+    setFaviconStatus("ok");
+  } catch (e) {
+    dot.classList.add("bad");
+    txt.textContent = `бэк недоступен`;
+    setFaviconStatus("bad");
+  }
+}
+
+/* ============ UI helpers ============ */
+function toast(msg) {
+  const m = document.getElementById("toast-mount");
+  m.innerHTML = `<div class="toast">${escapeHtml(msg)}</div>`;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => m.innerHTML = "", 1800);
+}
+function fmtRel(ts) {
+  if (!ts) return "—";
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5) return "только что";
+  if (s < 60) return s + " с назад";
+  const m = Math.floor(s / 60); if (m < 60) return m + " мин назад";
+  const h = Math.floor(m / 60); if (h < 24) return h + " ч назад";
+  const d = Math.floor(h / 24); return d + " дн назад";
+}
+function fmtAbs(ts) {
+  if (!ts) return "—";
+  const d = new Date(ts), p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function safeHost(u) { try { return new URL(u).host; } catch { return u; } }
+function toMillis(v) {
+  if (!v) return 0;
+  if (typeof v === "number") return v;
+  const d = new Date(v); return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* ============ Sync from DB ============ */
+async function syncFromDb() {
+  const list = document.getElementById("list");
+  try {
+    const data = await api("/links");
+    links = (data || []).map(l => ({
+      code: l.code,
+      originalUrl: l.originalUrl,
+      clicks: l.clicks ?? 0,
+      createdAt: toMillis(l.createdAt),
+    })).sort((a, b) => b.createdAt - a.createdAt);
+    render();
+  } catch (e) {
+    list.innerHTML = `<div class="empty">не удалось загрузить список с бэка: ${escapeHtml(e.message || "ошибка")}</div>`;
+    document.getElementById("list-count").textContent = "—";
+  }
+}
+
+/* ============ Render ============ */
+function render() {
+  const filtered = links.filter(l => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return l.code.toLowerCase().includes(q) || (l.originalUrl || "").toLowerCase().includes(q);
+  });
+  document.getElementById("list-count").textContent = links.length === filtered.length
+    ? `${links.length} шт`
+    : `${filtered.length} / ${links.length}`;
+
+  const list = document.getElementById("list");
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty">${links.length === 0 ? "пока пусто — сократи первую ссылку выше ↑" : "ничего не найдено"}</div>`;
+    return;
+  }
+
+  const origin = location.origin;
+  list.innerHTML = filtered.map(l => {
+    const shortUrl = `${origin}/${l.code}`;
+    const s = stats[l.code];
+    const statsBlock = expanded === l.code ? `
+      <div class="stats">
+        <div class="stat-box">
+          <div class="lbl">clicks</div>
+          <div class="val">${s ? s.clicks : (l.clicks ?? 0)}</div>
+          <div class="sub">всего переходов</div>
+        </div>
+        <div class="stat-box">
+          <div class="lbl">создан</div>
+          <div class="val">${fmtRel((s && toMillis(s.createdAt)) || l.createdAt)}</div>
+          <div class="sub">${fmtAbs((s && toMillis(s.createdAt)) || l.createdAt)}</div>
+        </div>
+        <div class="stat-box">
+          <div class="lbl">code</div>
+          <div class="val mono">${escapeHtml(l.code)}</div>
+          <div class="sub">GET /stats/${escapeHtml(l.code)}</div>
+        </div>
+      </div>` : "";
+
+    return `
+      <div class="item" data-code="${escapeHtml(l.code)}">
+        <div class="code-pill" data-copy="${escapeHtml(shortUrl)}" title="клик — скопировать">${escapeHtml(l.code)}</div>
+        <div class="item-url">
+          <a href="${escapeHtml(shortUrl)}" target="_blank" rel="noopener">${escapeHtml(l.originalUrl || "")}</a>
+          <div class="item-meta">
+            <span>${escapeHtml(safeHost(l.originalUrl || ""))}</span>
+            <span>·</span>
+            <span class="clicks">${(s && typeof s.clicks === "number") ? s.clicks : (l.clicks ?? 0)} clicks</span>
+            <span>·</span>
+            <span>${fmtRel(l.createdAt)}</span>
+          </div>
+        </div>
+        <div class="item-actions">
+          <button class="btn tiny" data-act="stats" data-code="${escapeHtml(l.code)}">${expanded === l.code ? "скрыть" : "стата"}</button>
+          <a class="btn tiny" href="${escapeHtml(shortUrl)}" target="_blank" rel="noopener">открыть</a>
+          <button class="btn tiny danger" data-act="del" data-code="${escapeHtml(l.code)}">удалить</button>
+        </div>
+        ${statsBlock}
+      </div>`;
+  }).join("");
+
+  list.querySelectorAll(".code-pill").forEach(el => {
+    el.onclick = () => {
+      const url = el.dataset.copy;
+      navigator.clipboard?.writeText(url);
+      toast("скопировано: " + url);
+    };
+  });
+  list.querySelectorAll("[data-act]").forEach(b => {
+    b.onclick = () => {
+      const code = b.dataset.code;
+      if (b.dataset.act === "stats") toggleStats(code);
+      if (b.dataset.act === "del") askDelete(code);
+    };
+  });
+}
+
+/* ============ Actions ============ */
+async function toggleStats(code) {
+  if (expanded === code) { expanded = null; render(); return; }
+  expanded = code; render();
+  try {
+    const s = await api(`/stats/${code}`);
+    stats[code] = s;
+    const idx = links.findIndex(l => l.code === code);
+    if (idx >= 0) links[idx].clicks = s.clicks;
+    render();
+  } catch (e) {
+    toast(`stats: ${e.message}`);
+  }
+}
+
+function askDelete(code) {
+  const m = document.getElementById("modal-mount");
+  m.innerHTML = `
+    <div class="modal-bg">
+      <div class="modal">
+        <h3>удалить <span class="mono">${escapeHtml(code)}</span>?</h3>
+        <p>ссылка будет удалена из БД безвозвратно (<span class="mono">DELETE /${escapeHtml(code)}</span>).</p>
+        <div class="row">
+          <button class="btn sec" id="m-cancel">отмена</button>
+          <button class="btn" id="m-ok" style="background: var(--err); color: #fff;">удалить</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById("m-cancel").onclick = () => m.innerHTML = "";
+  document.getElementById("m-ok").onclick = async () => {
+    m.innerHTML = "";
+    try {
+      await api(`/${code}`, { method: "DELETE" });
+      links = links.filter(l => l.code !== code);
+      delete stats[code];
+      if (expanded === code) expanded = null;
+      render();
+      toast(`удалено: ${code}`);
+    } catch (e) {
+      toast(`ошибка: ${e.message}`);
+    }
+  };
+}
+
+async function refreshAll() {
+  await syncFromDb();
+  toast(`обновлено: ${links.length}`);
+}
+
+/* ============ Form ============ */
+const form = document.getElementById("form");
+const urlInput = document.getElementById("url");
+const submitBtn = document.getElementById("submit");
+const formMsg = document.getElementById("form-msg");
+const formResult = document.getElementById("form-result");
+
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  formMsg.innerHTML = "";
+  formResult.innerHTML = "";
+  const url = urlInput.value.trim();
+  if (!url) {
+    formMsg.innerHTML = `<div class="alert err"><span class="tag err">пусто</span><span>введите ссылку</span></div>`;
+    urlInput.focus();
+    return;
+  }
+  if (url.length > 2048) {
+    formMsg.innerHTML = `<div class="alert err"><span class="tag err">длина</span><span>ссылка длиннее 2048 символов (${url.length})</span></div>`;
+    return;
+  }
+  // нормализуем: добавляем https:// если протокол не указан, но похоже на адрес
+  let normalized = url;
+  if (!/^[a-z][a-z0-9+\-.]*:\/\//i.test(normalized)) {
+    if (/^[\w-]+(\.[\w-]+)+([\/?#].*)?$/.test(normalized)) {
+      normalized = "https://" + normalized;
+    } else {
+      formMsg.innerHTML = `<div class="alert err"><span class="tag err">формат</span><span>не похоже на ссылку — добавьте http:// или https://</span></div>`;
+      urlInput.focus();
+      return;
+    }
+  }
+  // протокол должен быть http или https
+  if (!/^https?:\/\//i.test(normalized)) {
+    formMsg.innerHTML = `<div class="alert err"><span class="tag err">схема</span><span>поддерживаются только http:// и https://</span></div>`;
+    return;
+  }
+  // парсим как URL — проверяем что есть хост и он валиден
+  let parsed;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    formMsg.innerHTML = `<div class="alert err"><span class="tag err">формат</span><span>не удалось разобрать как URL</span></div>`;
+    return;
+  }
+  const host = parsed.hostname;
+  if (!host || host.length < 3) {
+    formMsg.innerHTML = `<div class="alert err"><span class="tag err">хост</span><span>не указан домен</span></div>`;
+    return;
+  }
+  // хост должен либо содержать точку (домен), либо быть localhost, либо IP
+  const isIP = /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(":");
+  const hasTld = host.includes(".") && !host.startsWith(".") && !host.endsWith(".");
+  const isLocal = host === "localhost";
+  if (!isIP && !hasTld && !isLocal) {
+    formMsg.innerHTML = `<div class="alert err"><span class="tag err">хост</span><span>домен без TLD: «${escapeHtml(host)}»</span></div>`;
+    return;
+  }
+  // запретим зацикливание — нельзя сократить ссылку на сам сервис
+  const ourHost = (location.host || "").toLowerCase();
+  if (ourHost && parsed.host.toLowerCase() === ourHost) {
+    formMsg.innerHTML = `<div class="alert err"><span class="tag err">цикл</span><span>нельзя сократить ссылку на сам сервис</span></div>`;
+    return;
+  }
+  if (normalized !== url) urlInput.value = normalized;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = `<span class="spinner"></span><span>отправка…</span>`;
+  try {
+    const r = await api("/shorten", { method: "POST", body: JSON.stringify({ url: normalized }) });
+    const short = r.shortUrl || `${location.origin}/${r.code}`;
+    formResult.innerHTML = `
+      <div class="result">
+        <a href="${escapeHtml(short)}" target="_blank" rel="noopener">${escapeHtml(short)}</a>
+        <button class="btn sec" id="copy-result">копировать</button>
+      </div>`;
+    document.getElementById("copy-result").onclick = () => {
+      navigator.clipboard?.writeText(short);
+      toast("скопировано");
+    };
+    urlInput.value = "";
+    await syncFromDb();
+  } catch (err) {
+    formMsg.innerHTML = `<div class="alert err"><span class="tag err">${err.status || "ERR"}</span><span>${escapeHtml(err.message || "не удалось")}</span></div>`;
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = `сократить →`;
+  }
+};
+
+/* ============ Wire-up ============ */
+document.getElementById("search").oninput = (e) => { query = e.target.value; render(); };
+document.getElementById("refresh-all").onclick = refreshAll;
+
+checkHealth();
+syncFromDb();
+</script>
+</body>
+</html>
