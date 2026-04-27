@@ -1,0 +1,13 @@
+.git
+.gradle
+.idea
+src
+gradle
+gradlew
+gradlew.bat
+settings.gradle
+build.gradle
+build/tmp
+build/classes
+build/generated
+build/reports
